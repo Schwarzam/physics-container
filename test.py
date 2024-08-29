@@ -1,53 +1,28 @@
 from nbodykit.lab import *
-from nbodykit import style
-from scipy.interpolate import InterpolatedUnivariateSpline as spline
+from nbodykit import setup_logging
 
-import matplotlib.pyplot as plt
+import numpy as np
 
-redshift = 0.55
+setup_logging("debug")
+
+# initialize a linear power spectrum class
 cosmo = cosmology.Planck15
-Plin = cosmology.LinearPower(cosmo, redshift, transfer='EisensteinHu')
-BoxSize = 1380.
-Nmesh = 256
+Plin = cosmology.LinearPower(cosmo, redshift=0.55, transfer='CLASS')
 
-cat = LogNormalCatalog(Plin=Plin, nbar=3e-4, BoxSize=BoxSize, Nmesh=Nmesh, bias=2.0, seed=42)
+# get some lognormal particles
+source = LogNormalCatalog(Plin=Plin, nbar=3e-7, BoxSize=1380., Nmesh=8, seed=42)
 
-# use a high-resolution mesh to get the truth
-mesh = cat.to_mesh(window='tsc', Nmesh=512, compensated=True)
+# Define the line-of-sight direction
+los = np.array([0, 0, 1])
 
-# compute the 1D power of this mesh
-r = FFTPower(mesh, mode='1d')
+# Apply RSD manually without using VectorProjection
+# This is the projection of the velocity onto the line-of-sight direction
+source['Position'] += source['VelocityOffset'] * (source['VelocityOffset'].dot(los) / np.linalg.norm(los)**2)[:, None]
 
-# create a smooth interpolation
-truth = r.power
-truth = spline(truth['k'], truth['power'].real - truth.attrs['shotnoise'])
+# compute P(k,mu) and multipoles
+result = FFTPower(source, mode='2d', poles=[0,2,4], los=los)
 
-for interlaced in [True, False]:
-    for window in ['CIC', 'TSC']:
-
-        # convert catalog to a mesh with desired window and interlacing
-        mesh = cat.to_mesh(Nmesh=256, window=window, compensated=False, interlaced=interlaced)
-
-        # apply correction for the window to the mesh
-        compensation = mesh.CompensateCIC if window == 'CIC' else mesh.CompensateTSC
-        mesh = mesh.apply(compensation, kind='circular', mode='complex')
-
-        # compute the 1D power P(k)
-        r = FFTPower(mesh, mode='1d')
-        Pk = r.power
-
-        # compare P(k) to the hi-resolution mesh P(k)
-        label = 'interlaced=%s, window=%s' %(interlaced, window)
-        plt.plot(Pk['k'], (Pk['power'].real - Pk.attrs['shotnoise']) / truth(Pk['k']), label=label)
-
-
-# plot Nyquist frequency
-k_ny = numpy.pi * Nmesh / BoxSize
-plt.axvline(x=k_ny, c='k', label="Nyquist frequency for Nmesh=256")
-
-# format the axes
-plt.legend(loc=0, ncol=2)
-plt.xlabel(r"$k$ [$h \ \mathrm{Mpc}^{-1}$]")
-plt.ylabel(r"$P(k) / P(k)^\mathrm{truth}$")
-plt.ylim(0.9, 1.2)
+# and save
+output = "./nbkit_example_power.json"
+result.save(output)
 

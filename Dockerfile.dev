@@ -34,9 +34,13 @@ RUN apt install -y libopenmpi-dev
 RUN pip3 install numpy==1.26.4 Cython==0.29.37 mpi4py setuptools
 
 RUN git clone https://github.com/sbird/classylss.git
-RUN (cd /src/classylss && pip3 install .)
+RUN (cd /src/classylss && pip3 install . --no-build-isolation)
 
 RUN apt-get install -y libbz2-dev
 RUN pip3 install --no-build-isolation nbodykit[extras]
 
-RUN pip3 install matplotlib notebook
+RUN pip3 install notebook
+
+COPY additional_packages.txt ./
+
+RUN pip3 install --no-build-isolation -r additional_packages.txt 
