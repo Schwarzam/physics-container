@@ -2,6 +2,8 @@
 
 #### This is a container implementation to run nbody and corrfunc in a docker container 
 
+### Building the container
+
 First of all you need to install docker in your machine. You can follow the instructions in the official docker website. 
 
 Follow the steps in this [https://docs.docker.com/engine/install/ubuntu/](https://docs.docker.com/engine/install/ubuntu/) to install docker in your machine.
@@ -15,6 +17,8 @@ sudo docker build -f Dockerfile.dev -t physicscont .
 ```
 
 After building the image, you can run the container by running the following command in the terminal. 
+
+### Running the container
 
 **It's important** to understand that the container has its own storage space and it's isolated from the host machine. You can mount the host machine's directory to the container by using the `-v` flag. 
 
